@@ -3,32 +3,28 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# --- PREMIUM TEMA AYARLARI ---
+# --- FERAH UI AYARLARI ---
 st.set_page_config(page_title="DVA Terminal", layout="wide")
 
-# Midas tarzı modern font ve temiz arayüz için CSS
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-    html, body, [class*="css"]  {
-        font-family: 'Inter', sans-serif;
-        color: #f8f9fa;
-    }
-    .main { background-color: #0c0e12; }
-    div[data-testid="stMetricValue"] { font-size: 28px; font-weight: 700; color: #00d084; }
-    .stButton>button { border-radius: 8px; border: none; background-color: #1e222d; color: white; width: 100%; transition: 0.3s; }
-    .stButton>button:hover { background-color: #00d084; color: black; }
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+    html, body, [class*="css"] { font-family: 'Plus+Jakarta+Sans', sans-serif; }
+    .main { background-color: #fcfcfd; }
+    .stMetric { background-color: white; padding: 15px; border-radius: 12px; border: 1px solid #eee; }
+    .stButton>button { border-radius: 10px; height: 3em; background-color: #101828; color: white; }
+    div[data-testid="stSidebar"] { background-color: #f8f9fa; border-right: 1px solid #eee; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- VERİ SETİ ---
+# --- VERİ SETİ (Kritik Hata Korumalı) ---
 if 'players_df' not in st.session_state:
     data = [
-        {"Name": "E. Haaland", "Pos": "FW", "Price": 65, "Hype": 95, "Skill": 91, "Health": "Stable", "GW_Points": 12, "Physical": 95},
-        {"Name": "K. De Bruyne", "Pos": "MF", "Price": 45, "Hype": 80, "Skill": 90, "Health": "Risk", "GW_Points": 8, "Physical": 82},
-        {"Name": "W. Saliba", "Pos": "DF", "Price": 35, "Hype": 70, "Skill": 88, "Health": "Stable", "GW_Points": 6, "Physical": 90},
-        {"Name": "Saka", "Pos": "FW", "Price": 50, "Hype": 88, "Skill": 89, "Health": "Stable", "GW_Points": 10, "Physical": 84},
-        {"Name": "Rodri", "Pos": "MF", "Price": 55, "Hype": 92, "Skill": 92, "Health": "Stable", "GW_Points": 7, "Physical": 88}
+        {"Name": "E. Haaland", "Pos": "FW", "Price": 65, "Hype": 95, "Skill": 91, "GW_Points": 12, "Physical": 95},
+        {"Name": "K. De Bruyne", "Pos": "MF", "Price": 45, "Hype": 80, "Skill": 90, "GW_Points": 8, "Physical": 82},
+        {"Name": "W. Saliba", "Pos": "DF", "Price": 35, "Hype": 70, "Skill": 88, "GW_Points": 6, "Physical": 90},
+        {"Name": "Saka", "Pos": "FW", "Price": 50, "Hype": 88, "Skill": 89, "GW_Points": 10, "Physical": 84},
+        {"Name": "Rodri", "Pos": "MF", "Price": 55, "Hype": 92, "Skill": 92, "GW_Points": 7, "Physical": 88}
     ]
     st.session_state.players_df = pd.DataFrame(data)
 
@@ -36,91 +32,67 @@ if 'compare_list' not in st.session_state:
     st.session_state.compare_list = []
 
 # --- NAVİGASYON ---
-with st.sidebar:
-    st.title("📊 DVA")
-    page = st.radio("Menü", ["🏠 Terminal", "📈 Pazar Analizi", "⚔️ Oyuncu Kıyaslama", "🔐 Yönetim"])
+page = st.sidebar.radio("MENÜ", ["🏠 Terminal", "📊 Pazar Analizi", "⚔️ Oyuncu Karşılaştırma", "🔐 Yönetim"])
 
-# --- 1. ANA SAYFA & GLOBAL ARAMA ---
+# --- 1. TERMİNAL ---
 if page == "🏠 Terminal":
-    st.title("📡 Canlı Borsa Terminali")
+    st.title("📡 DVA Data Terminal")
     
-    # Midas Tarzı Arama
+    # Merkezi Arama
     search_query = st.selectbox("🔍 Oyuncu veya Takım Ara...", [""] + st.session_state.players_df['Name'].tolist())
     
     if search_query:
-        p_data = st.session_state.players_df[st.session_state.players_df['Name'] == search_query].iloc[0]
-        st.markdown(f"## {p_data['Name']} <span style='font-size:15px; color:gray;'>{p_data['Pos']}</span>", unsafe_allow_html=True)
-        
-        c1, c2, c3 = st.columns([1, 1, 2])
-        c1.metric("Piyasa Değeri", f"€{p_data['Price']}M")
-        c2.metric("Performans", f"{p_data['GW_Points']} Puan")
-        
+        p = st.session_state.players_df[st.session_state.players_df['Name'] == search_query].iloc[0]
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c1:
+            st.metric("Piyasa Değeri", f"€{p['Price']}M")
+        with c2:
+            st.metric("Haftalık Puan", f"{p['GW_Points']} pts")
         with c3:
-            fig_gauge = go.Figure(go.Indicator(
-                mode = "gauge+number", value = p_data['Hype'],
-                gauge = {'axis': {'range': [0, 100]}, 'bar': {'color': "#00d084"}},
-                domain = {'x': [0, 1], 'y': [0, 1]}
-            ))
-            fig_gauge.update_layout(height=200, margin=dict(t=0, b=0, l=0, r=0), paper_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig_gauge, use_container_width=True)
-        
-        if st.button(f"⚔️ {p_data['Name']} Kıyaslamaya Ekle"):
-            if p_data['Name'] not in st.session_state.compare_list:
-                st.session_state.compare_list.append(p_data['Name'])
-                st.success("Listeye eklendi. Kıyaslama sayfasına gidiniz.")
+            if st.button(f"⚔️ {p['Name']} Kıyaslamaya Ekle"):
+                if p['Name'] not in st.session_state.compare_list:
+                    st.session_state.compare_list.append(p['Name'])
+                    st.toast("Arena'ya eklendi!")
 
     st.divider()
-    st.subheader("🔥 Popüler Yatırımlar")
-    trending = st.session_state.players_df.sort_values(by="Hype", ascending=False).head(3)
+    st.subheader("🔥 Gündemdeki Oyuncular")
     t_cols = st.columns(3)
+    trending = st.session_state.players_df.sort_values(by="Hype", ascending=False).head(3)
     for i, (_, r) in enumerate(trending.iterrows()):
-        with t_cols[i]:
-            st.markdown(f"<div style='background-color:#1e222d; padding:20px; border-radius:15px;'>"
-                        f"<h4 style='margin:0;'>{r['Name']}</h4>"
-                        f"<p style='color:#00d084; font-weight:bold;'>€{r['Price']}M</p>"
-                        f"</div>", unsafe_allow_html=True)
+        t_cols[i].info(f"**{r['Name']}**\nHype Score: {r['Hype']}")
 
-# --- 2. PAZAR ANALİZİ ---
-elif page == "📈 Pazar Analizi":
-    st.title("📉 Piyasa Dinamikleri")
-    st.info("Analiz Terminali: Fan kullanıcılar için değer/yetenek korelasyonu.")
-    fig_scatter = px.scatter(st.session_state.players_df, x="Skill", y="Price", size="Hype", color="Pos",
-                             template="plotly_dark", color_discrete_sequence=px.colors.qualitative.Pastel)
-    fig_scatter.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-    st.plotly_chart(fig_scatter, use_container_width=True)
+# --- 2. ANALİZ ---
+elif page == "📊 Pazar Analizi":
+    st.title("📊 Pazar Analizi")
+    fig = px.scatter(st.session_state.players_df, x="Skill", y="Price", size="Hype", color="Pos", hover_name="Name")
+    fig.update_layout(height=400, margin=dict(l=0, r=0, t=20, b=0))
+    st.plotly_chart(fig, use_container_width=True)
 
-# --- 3. OYUNCU KIYASLAMA ---
-elif page == "⚔️ Oyuncu Kıyaslama":
-    st.title("⚔️ Oyuncu Kıyaslama")
+# --- 3. KIYASLAMA ---
+elif page == "⚔️ Oyuncu Karşılaştırma":
+    st.title("⚔️ Oyuncu Karşılaştırma")
+    names = st.session_state.players_df['Name'].tolist()
     
-    # Hata korumalı seçimler
-    all_names = st.session_state.players_df['Name'].tolist()
-    s1 = st.session_state.compare_list[0] if len(st.session_state.compare_list) > 0 else all_names[0]
-    s2 = st.session_state.compare_list[1] if len(st.session_state.compare_list) > 1 else all_names[1]
-
     col1, col2 = st.columns(2)
-    p1 = col1.selectbox("Oyuncu 1", all_names, index=all_names.index(s1))
-    p2 = col2.selectbox("Oyuncu 2", all_names, index=all_names.index(s2))
+    p1_name = col1.selectbox("Oyuncu 1", names, index=0)
+    p2_name = col2.selectbox("Oyuncu 2", names, index=1)
     
-    d1 = st.session_state.players_df[st.session_state.players_df['Name'] == p1].iloc[0]
-    d2 = st.session_state.players_df[st.session_state.players_df['Name'] == p2].iloc[0]
+    d1 = st.session_state.players_df[st.session_state.players_df['Name'] == p1_name].iloc[0]
+    d2 = st.session_state.players_df[st.session_state.players_df['Name'] == p2_name].iloc[0]
     
-    fig_radar = go.Figure()
+    fig = go.Figure()
     cats = ['Skill', 'Physical', 'Hype', 'GW_Points']
-    # Puanı normalize ediyoruz (Hata çözümü)
-    fig_radar.add_trace(go.Scatterpolar(r=[d1['Skill'], d1['Physical'], d1['Hype'], d1['GW_Points']*5], fill='toself', name=p1, line_color="#00d084"))
-    fig_radar.add_trace(go.Scatterpolar(r=[d2['Skill'], d2['Physical'], d2['Hype'], d2['GW_Points']*5], fill='toself', name=p2, line_color="#0070f3"))
-    
-    fig_radar.update_layout(polar=dict(radialaxis=dict(visible=False, range=[0, 100])), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-    st.plotly_chart(fig_radar, use_container_width=True)
+    fig.add_trace(go.Scatterpolar(r=[d1[c]*5 if c=='GW_Points' else d1[c] for c in cats], theta=cats, fill='toself', name=p1_name))
+    fig.add_trace(go.Scatterpolar(r=[d2[c]*5 if c=='GW_Points' else d2[c] for c in cats], theta=cats, fill='toself', name=p2_name))
+    fig.update_layout(height=450, polar=dict(radialaxis=dict(visible=True, range=[0, 100])))
+    st.plotly_chart(fig, use_container_width=True)
 
-# --- 4. YÖNETİM PANELİ ---
+# --- 4. YÖNETİM ---
 elif page == "🔐 Yönetim":
     st.title("🔐 Veri Girişi")
-    with st.form("update_form"):
+    with st.form("adm"):
         target = st.selectbox("Oyuncu", st.session_state.players_df['Name'])
-        new_price = st.number_input("Yeni Değer (€M)", 0, 200, 50)
-        new_pts = st.slider("Haftalık Puan", 0, 20, 5)
-        if st.form_submit_button("Sistemi Güncelle"):
-            st.session_state.players_df.loc[st.session_state.players_df['Name'] == target, ['Price', 'GW_Points']] = [new_price, new_pts]
-            st.success("Veri başarıyla işlendi!")
+        new_pts = st.slider("Puan", 0, 20, 5)
+        if st.form_submit_button("Güncelle"):
+            st.session_state.players_df.loc[st.session_state.players_df['Name'] == target, 'GW_Points'] = new_pts
+            st.success("Güncellendi!")
