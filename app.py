@@ -2,116 +2,108 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
 
-# --- TASARIM VE FONT AYARLARI ---
-st.set_page_config(page_title="DVA Pro: Sportbase & Opta Edition", layout="wide")
+# --- SİSTEM AYARLARI ---
+st.set_page_config(page_title="DVA Pro: Performance Hub", layout="wide")
 
+# CSS ile Tablo ve Buton Şıklaştırma
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .stat-box { background-color: #f8f9fa; border-radius: 8px; padding: 10px; border-left: 4px solid #007bff; }
-    .opta-score { font-family: 'Roboto Mono', monospace; color: #00d084; font-weight: bold; }
+    .stTable { background-color: white; border-radius: 10px; }
+    .league-btn { border-radius: 20px; padding: 10px 20px; border: 1px solid #ddd; }
+    .opta-val { color: #00d084; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- GENİŞLETİLMİŞ VERİ SETİ (OPTA & SPORTBASE MANTIĞI) ---
+# --- GENİŞLETİLMİŞ LİG & OYUNCU VERİSİ ---
 if 'players_df' not in st.session_state:
     data = [
-        {"Name": "E. Haaland", "Team": "Man City", "Pos": "FW", "Price": 180, "Opta_Points": 88.5, "Gls_90": 1.12, "Ast_90": 0.15, "xG_90": 0.95, "SHT_90": 3.8, "Pass_Acc": 78, "Health": "Stable"},
-        {"Name": "K. De Bruyne", "Team": "Man City", "Pos": "MF", "Price": 90, "Opta_Points": 91.2, "Gls_90": 0.25, "Ast_90": 0.88, "xG_90": 0.22, "SHT_90": 2.1, "Pass_Acc": 84, "Health": "Risk"},
-        {"Name": "W. Saliba", "Team": "Arsenal", "Pos": "DF", "Price": 80, "Opta_Points": 85.0, "Gls_90": 0.05, "Ast_90": 0.02, "xG_90": 0.04, "SHT_90": 0.4, "Pass_Acc": 92, "Health": "Stable"},
-        {"Name": "Saka", "Team": "Arsenal", "Pos": "FW", "Price": 130, "Opta_Points": 87.8, "Gls_90": 0.45, "Ast_90": 0.35, "xG_90": 0.38, "SHT_90": 2.5, "Pass_Acc": 81, "Health": "Stable"},
-        {"Name": "Rodri", "Team": "Man City", "Pos": "MF", "Price": 110, "Opta_Points": 94.1, "Gls_90": 0.18, "Ast_90": 0.22, "xG_90": 0.15, "SHT_90": 1.5, "Pass_Acc": 95, "Health": "Stable"}
+        {"Name": "E. Haaland", "League": "Premier League", "Pos": "FW", "Price": 180, "Perf_Score": 88, "Gls_90": 1.12, "Ast_90": 0.15, "xG_90": 0.95, "SHT_90": 3.8, "Pass_Acc": 78},
+        {"Name": "K. De Bruyne", "League": "Premier League", "Pos": "MF", "Price": 90, "Perf_Score": 91, "Gls_90": 0.25, "Ast_90": 0.88, "xG_90": 0.22, "SHT_90": 2.1, "Pass_Acc": 84},
+        {"Name": "Vinícius Jr.", "League": "La Liga", "Pos": "FW", "Price": 150, "Perf_Score": 94, "Gls_90": 0.65, "Ast_90": 0.40, "xG_90": 0.55, "SHT_90": 3.2, "Pass_Acc": 82},
+        {"Name": "J. Bellingham", "League": "La Liga", "Pos": "MF", "Price": 120, "Perf_Score": 89, "Gls_90": 0.45, "Ast_90": 0.30, "xG_90": 0.35, "SHT_90": 1.8, "Pass_Acc": 88},
+        {"Name": "H. Kane", "League": "Bundesliga", "Pos": "FW", "Price": 110, "Perf_Score": 92, "Gls_90": 1.05, "Ast_90": 0.20, "xG_90": 0.85, "SHT_90": 3.5, "Pass_Acc": 80},
+        {"Name": "Lautaro Martínez", "League": "Serie A", "Pos": "FW", "Price": 110, "Perf_Score": 87, "Gls_90": 0.75, "Ast_90": 0.15, "xG_90": 0.65, "SHT_90": 3.0, "Pass_Acc": 75},
+        {"Name": "K. Mbappé", "League": "Ligue 1", "Pos": "FW", "Price": 180, "Perf_Score": 95, "Gls_90": 0.95, "Ast_90": 0.25, "xG_90": 0.80, "SHT_90": 4.2, "Pass_Acc": 83}
     ]
     st.session_state.players_df = pd.DataFrame(data)
 
+if 'compare_list' not in st.session_state:
+    st.session_state.compare_list = []
+
 # --- NAVİGASYON ---
-page = st.sidebar.radio("📊 DVA PRO HUB", ["🏠 Ana Terminal", "🏟️ Canlı Skorlar (Maçkolik)", "⚔️ Oyuncu Karşılaştırma", "🔐 Veri Merkezi"])
+page = st.sidebar.radio("Menü", ["🏠 Ana Sayfa", "🏟️ Canlı Sonuçlar", "⚔️ Oyuncu Karşılaştırma", "🔐 Admin"])
 
-# --- 1. ANA TERMİNAL (PROFİLLER & OPTA) ---
-if page == "🏠 Ana Terminal":
-    st.title("⚽ Pro Analytics Terminal")
-    search = st.selectbox("🔍 Oyuncu veya Takım Ara...", [""] + st.session_state.players_df['Name'].tolist())
+# --- 1. ANA SAYFA (LİG BAZLI HAFTALIK DEĞERLENDİRME) ---
+if page == "🏠 Ana Sayfa":
+    st.title("🏆 Haftalık Performans Değerlendirmesi")
     
-    if search:
-        p = st.session_state.players_df[st.session_state.players_df['Name'] == search].iloc[0]
-        col1, col2, col3 = st.columns([1, 1, 2])
-        
-        with col1:
-            st.header(p['Name'])
-            st.write(f"**Takım:** {p['Team']} | **Mevki:** {p['Pos']}")
-            st.metric("Piyasa Değeri", f"€{p['Price']}M")
-        
-        with col2:
-            st.subheader("Opta Performance")
-            st.markdown(f"<div class='opta-score' style='font-size:40px;'>{p['Opta_Points']}</div>", unsafe_allow_html=True)
-            st.caption("Son 5 maç performansı baz alınmıştır.")
-            
-        with col3:
-            st.subheader("Maç Geçmişi & İstatistik")
-            match_data = pd.DataFrame({
-                "Maç": ["v Liverpool", "v Real Madrid", "v Chelsea"],
-                "Süre": ["90'", "82'", "90'"],
-                "Puan": [7.8, 8.5, 6.9],
-                "Aksiyon": ["1 Gol", "2 Asist", "Sarı Kart"]
-            })
-            st.table(match_data)
+    # Lig Seçimi (Yan Yana)
+    leagues = ["Premier League", "La Liga", "Bundesliga", "Serie A", "Ligue 1"]
+    selected_league = st.radio("LİG SEÇİN:", leagues, horizontal=True)
+    
+    st.divider()
+    
+    # Seçilen Lige Göre Oyuncuları Filtrele
+    filtered_df = st.session_state.players_df[st.session_state.players_df['League'] == selected_league].sort_values(by="Perf_Score", ascending=False)
+    
+    st.subheader(f"🔥 {selected_league} - Haftanın En İyileri")
+    
+    # Oyuncu Kartları (Özet)
+    cols = st.columns(len(filtered_df) if len(filtered_df) > 0 else 1)
+    for i, (_, row) in enumerate(filtered_df.iterrows()):
+        with cols[i]:
+            st.markdown(f"""
+                <div style="background-color:#f1f3f5; padding:15px; border-radius:10px; border-top: 5px solid #00d084;">
+                    <h4 style="margin:0;">{row['Name']}</h4>
+                    <p style="color:gray; margin:0;">{row['Pos']}</p>
+                    <h2 style="margin:10px 0; color:#101828;">{row['Perf_Score']}</h2>
+                    <p style="font-size:12px;">Haftalık Performans</p>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"Kıyasla: {row['Name']}", key=f"btn_{row['Name']}"):
+                st.session_state.compare_list.append(row['Name'])
+                st.toast(f"{row['Name']} listeye eklendi!")
 
-# --- 2. CANLI SKORLAR (MAÇKOLİK TARZI) ---
-elif page == "🏟️ Canlı Skorlar (Maçkolik)":
+# --- 2. CANLI SONUÇLAR ---
+elif page == "🏟️ Canlı Sonuçlar":
     st.title("🏟️ Canlı Maç Merkezi")
-    st.info("Opta Points verileri maç anında canlı güncellenmektedir.")
-    
-    matches = [
-        {"Home": "Man City", "Away": "Arsenal", "Score": "2 - 1", "Min": "72'", "Status": "Live"},
-        {"Home": "Real Madrid", "Away": "Barcelona", "Score": "0 - 0", "Min": "15'", "Status": "Live"}
-    ]
-    
-    for m in matches:
-        with st.container():
-            c1, c2, c3 = st.columns([2, 1, 2])
-            c1.button(m['Home'], use_container_width=True)
-            c2.markdown(f"<h3 style='text-align:center;'>{m['Score']}</h3><p style='text-align:center; color:red;'>{m['Min']}</p>", unsafe_allow_html=True)
-            c3.button(m['Away'], use_container_width=True)
-            st.divider()
+    # Sadeleştirilmiş Maç Listesi
+    c1, c2, c3 = st.columns([2, 1, 2])
+    c1.subheader("Man City")
+    c2.markdown("<h2 style='text-align:center;'>2 - 1</h2>", unsafe_allow_html=True)
+    c3.subheader("Arsenal")
+    st.caption("Maç Sonu: Oyuncu verileri işleniyor...")
 
-# --- 3. OYUNCU KARŞILAŞTIRMA (SPORTBASE TARZI) ---
+# --- 3. OYUNCU KARŞILAŞTIRMA (SPORTBASE TASARIMI) ---
 elif page == "⚔️ Oyuncu Karşılaştırma":
-    st.title("⚔️ Data Comparison (Per 90)")
+    st.title("⚔️ Karşılaştırma Arenası")
     
     names = st.session_state.players_df['Name'].tolist()
-    c1, c2 = st.columns(2)
-    p1 = c1.selectbox("1. Oyuncu", names, index=0)
-    p2 = c2.selectbox("2. Oyuncu", names, index=1)
+    col1, col2 = st.columns(2)
+    p1 = col1.selectbox("1. Oyuncu", names, index=0)
+    p2 = col2.selectbox("2. Oyuncu", names, index=1)
     
     d1 = st.session_state.players_df[st.session_state.players_df['Name'] == p1].iloc[0]
     d2 = st.session_state.players_df[st.session_state.players_df['Name'] == p2].iloc[0]
     
-    # Radar Grafik (Görsel)
-    fig = go.Figure()
-    cats = ['Gls_90', 'Ast_90', 'xG_90', 'SHT_90', 'Pass_Acc']
-    # Normalize ederek çizim (Yüzde bazlı göstermek için)
-    fig.add_trace(go.Scatterpolar(r=[d1[c] if c != 'Pass_Acc' else d1[c]/10 for c in cats], theta=cats, fill='toself', name=p1))
-    fig.add_trace(go.Scatterpolar(r=[d2[c] if c != 'Pass_Acc' else d2[c]/10 for c in cats], theta=cats, fill='toself', name=p2))
-    st.plotly_chart(fig, use_container_width=True)
+    # Sportbase Stil Tablo Tasarımı
+    st.markdown("### 📊 Detaylı İstatistik Karşılaştırması (90 dk)")
     
-    # Sportbase Tarzı Tablo (Verisel)
-    st.subheader("Detaylı Karşılaştırma Matrisi")
-    comparison_table = pd.DataFrame({
-        "Metrik": ["Opta Puanı", "Gol (90 dk)", "Asist (90 dk)", "xG (Beklenen Gol)", "Şut (90 dk)", "Pas İsabeti %"],
-        p1: [d1['Opta_Points'], d1['Gls_90'], d1['Ast_90'], d1['xG_90'], d1['SHT_90'], d1['Pass_Acc']],
-        p2: [d2['Opta_Points'], d2['Gls_90'], d2['Ast_90'], d2['xG_90'], d2['SHT_90'], d2['Pass_Acc']]
-    })
-    st.table(comparison_table)
+    comparison_data = {
+        "İstatistik": ["Performans Puanı", "Gol", "Asist", "Beklenen Gol (xG)", "Şut", "Pas İsabeti %"],
+        p1: [d1['Perf_Score'], d1['Gls_90'], d1['Ast_90'], d1['xG_90'], d1['SHT_90'], f"%{d1['Pass_Acc']}"],
+        p2: [d2['Perf_Score'], d2['Gls_90'], d2['Ast_90'], d2['xG_90'], d2['SHT_90'], f"%{d2['Pass_Acc']}"]
+    }
+    
+    df_table = pd.DataFrame(comparison_data)
+    st.table(df_table) # Şimdilik en stabil ve temiz görünüm
 
-# --- 4. VERİ MERKEZİ ---
-elif page == "🔐 Veri Merkezi":
-    st.title("🔐 Admin Terminal")
-    with st.expander("Oyuncu Verilerini Güncelle"):
-        target = st.selectbox("Oyuncu", st.session_state.players_df['Name'])
-        new_opta = st.number_input("Yeni Opta Puanı", 0.0, 100.0, 80.0)
-        if st.button("Veriyi Sisteme Gönder"):
-            st.session_state.players_df.loc[st.session_state.players_df['Name'] == target, 'Opta_Points'] = new_opta
-            st.success("Tüm terminaller güncellendi!")
+# --- 4. ADMIN ---
+elif page == "🔐 Admin":
+    st.title("🔐 Veri Girişi")
+    target = st.selectbox("Oyuncu Seç", st.session_state.players_df['Name'])
+    new_score = st.slider("Haftalık Performans Puanı", 0, 100, 85)
+    if st.button("Veriyi Güncelle"):
+        st.session_state.players_df.loc[st.session_state.players_df['Name'] == target, 'Perf_Score'] = new_score
+        st.success("Haftalık değerlendirme güncellendi!")
