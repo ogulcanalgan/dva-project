@@ -3,66 +3,72 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Sayfa Ayarları & Tema
-st.set_page_config(page_title="DVA: Professional Analyst", layout="wide")
-st.markdown("""<style> .main { background-color: #0e1117; color: white; } </style>""", unsafe_allow_html=True)
+# Sayfa Ayarları
+st.set_page_config(page_title="DVA: Professional Analytics & Leagues", layout="wide")
 
-# --- MASTER MODEL (GELİŞMİŞ ALGORİTMA) ---
-def calculate_dva_value(base, age, position, contract, health_score=100, hype=1.0):
-    # Kaleci Yaş Eğrisi (28-33 Peak)
-    if position == "Goalkeeper":
-        age_mul = 1.0 if 28 <= age <= 33 else (0.95 if age < 28 else 0.80)
-    else: # Oyuncu Yaş Eğrisi (24-28 Peak)
-        age_mul = 1.0 if 24 <= age <= 28 else (0.85 if age < 24 else 0.70)
-    
-    contract_mul = 0.75 if contract < 12 else 1.0
-    health_mul = 0.80 if health_score < 70 else 1.0
-    
-    return round(base * age_mul * contract_mul * health_mul * hype, 1)
+# --- LİG PARAMETRELERİ ---
+LEAGUES = {
+    "Scout League (Easy)": {"budget": 150, "reward": "Digital Badge"},
+    "General Manager League (Medium)": {"budget": 100, "reward": "Team Jersey"},
+    "Elite Investor League (Hard)": {"budget": 75, "reward": "Derby Ticket"}
+}
 
-# --- VERİ SETİ (PREMIER LİG GENİŞLETİLMİŞ) ---
-players = [
-    {"Name": "E. Haaland", "Pos": "Forward", "Age": 24, "Contract": 36, "Physical": 95, "Skill": 91, "Health": 95, "Value": 180},
-    {"Name": "Rodri", "Pos": "Midfielder", "Age": 28, "Contract": 40, "Physical": 88, "Skill": 92, "Health": 90, "Value": 130},
-    {"Name": "M. Salah", "Pos": "Forward", "Age": 32, "Contract": 12, "Physical": 85, "Skill": 89, "Health": 98, "Value": 75},
-    {"Name": "W. Saliba", "Pos": "Defender", "Age": 23, "Contract": 36, "Physical": 90, "Skill": 85, "Health": 92, "Value": 90},
-    {"Name": "Alisson", "Pos": "Goalkeeper", "Age": 31, "Contract": 24, "Physical": 82, "Skill": 90, "Health": 85, "Value": 55}
-]
-df = pd.DataFrame(players)
+# --- OYUNCU VERİ SETİ ---
+if 'players_df' not in st.session_state:
+    data = [
+        {"Name": "E. Haaland", "Pos": "FW", "Price": 65, "Hype": 95, "Skill": 91, "Health": "Stable"},
+        {"Name": "K. De Bruyne", "Pos": "MF", "Price": 45, "Hype": 80, "Skill": 90, "Health": "Risk"},
+        {"Name": "W. Saliba", "Pos": "DF", "Price": 35, "Hype": 70, "Skill": 88, "Health": "Stable"},
+        {"Name": "Saka", "Pos": "FW", "Price": 50, "Hype": 88, "Skill": 89, "Health": "Stable"},
+        {"Name": "Rodri", "Pos": "MF", "Price": 55, "Hype": 85, "Skill": 92, "Health": "Stable"}
+    ]
+    st.session_state.players_df = pd.DataFrame(data)
 
-# --- ARAYÜZ ---
-st.title("⚽ DVA: Dynamic Value Analyst (V2.0)")
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg", width=100)
-mode = st.sidebar.selectbox("Mod Seçimi", ["Fan View (Kartlar)", "Pro Mode (Derin Analiz)", "Arena (Kıyaslama)"])
+# --- SIDEBAR: LİG VE BÜTÇE ---
+st.sidebar.title("🏆 DVA Arena")
+selected_league = st.sidebar.selectbox("Lige Katıl", list(LEAGUES.keys()))
+budget = LEAGUES[selected_league]["budget"]
+st.sidebar.info(f"Bütçe: €{budget}M | Ödül: {LEAGUES[selected_league]['reward']}")
 
-if mode == "Fan View (Kartlar)":
-    st.subheader("🔥 Canlı Piyasa Kartları")
-    cols = st.columns(len(df))
-    for i, row in df.iterrows():
-        with cols[i]:
-            st.markdown(f"### {row['Name']}")
-            st.metric("Değer", f"€{row['Value']}M", delta=f"{row['Age']} Yaş")
-            st.progress(row['Skill']/100)
+# --- ANA EKRAN ---
+st.title(f"📊 DVA Dashboard - {selected_league}")
 
-elif mode == "Pro Mode (Derin Analiz)":
-    st.subheader("📊 Profesyonel Borsa Terminali")
-    # Değer vs Yetenek Grafiği
-    fig = px.scatter(df, x="Skill", y="Value", size="Physical", color="Pos", hover_name="Name", template="plotly_dark")
+tab1, tab2, tab3 = st.tabs(["Market Terminal", "My Portfolio (Squad)", "Badges & Ranks"])
+
+with tab1:
+    st.subheader("📡 Canlı Veri Akışı")
+    # Hype Meter Görselleştirme
+    fig = px.bar(st.session_state.players_df, x='Name', y='Hype', color='Hype', 
+                 title="Hype Meter (Market Heat)", template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
-    st.table(df)
+    
+    # Market Table
+    edited_df = st.data_editor(st.session_state.players_df)
 
-elif mode == "Arena (Kıyaslama)":
-    st.subheader("⚔️ Oyuncu Kıyaslama Arenası")
-    p1 = st.selectbox("1. Oyuncu", df['Name'])
-    p2 = st.selectbox("2. Oyuncu", df['Name'], index=1)
+with tab2:
+    st.subheader("📋 Kadro ve Bütçe Analizi")
+    selected_players = st.multiselect("Oyuncu Satın Al (Portföye Ekle)", st.session_state.players_df['Name'].tolist())
     
-    d1 = df[df['Name'] == p1].iloc[0]
-    d2 = df[df['Name'] == p2].iloc[0]
+    current_spent = st.session_state.players_df[st.session_state.players_df['Name'].isin(selected_players)]['Price'].sum()
+    remaining = budget - current_spent
     
-    # Radar Grafik
-    categories = ['Skill', 'Physical', 'Health', 'Age (Normalized)']
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(r=[d1['Skill'], d1['Physical'], d1['Health'], 100-d1['Age']], fill='toself', name=p1))
-    fig.add_trace(go.Scatterpolar(r=[d2['Skill'], d2['Physical'], d2['Health'], 100-d2['Age']], fill='toself', name=p2))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), template="plotly_dark")
-    st.plotly_chart(fig)
+    col1, col2 = st.columns(2)
+    col1.metric("Harcanan", f"€{current_spent}M")
+    col2.metric("Kalan Bütçe", f"€{remaining}M", delta=float(remaining), delta_color="normal")
+    
+    if remaining < 0:
+        st.error("⚠️ Bütçeyi aştınız! Lütfen oyuncu satın!")
+
+with tab3:
+    st.subheader("🎖️ Kazanılabilir Unvanlar")
+    badge_cols = st.columns(3)
+    badges = [
+        {"name": "The Oracle", "desc": "Pre-Hype Investor"},
+        {"name": "Moneyballer", "desc": "High Efficiency GM"},
+        {"name": "Risk Architect", "desc": "Injury Risk Manager"},
+        {"name": "Iron Curtain", "desc": "Defense Specialist"},
+        {"name": "Master Scout", "desc": "Wonderkid Finder"},
+        {"name": "Hype Conductor", "desc": "Market Timer"}
+    ]
+    for i, b in enumerate(badges):
+        badge_cols[i % 3].info(f"**{b['name']}**\n\n{b['desc']}")
