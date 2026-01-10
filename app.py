@@ -1,109 +1,141 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
-# --- SİSTEM AYARLARI ---
-st.set_page_config(page_title="DVA Pro: Performance Hub", layout="wide")
+# --- MODERN UI CONFIG (DRIBBBLE INSPIRED) ---
+st.set_page_config(page_title="DVA: Elite Analytics", layout="wide")
 
-# CSS ile Tablo ve Buton Şıklaştırma
 st.markdown("""
     <style>
-    .stTable { background-color: white; border-radius: 10px; }
-    .league-btn { border-radius: 20px; padding: 10px 20px; border: 1px solid #ddd; }
-    .opta-val { color: #00d084; font-weight: bold; }
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
+    
+    html, body, [class*="css"] { font-family: 'Outfit', sans-serif; background-color: #fcfcfd; }
+    
+    /* Lig Butonları */
+    .stRadio [role="radiogroup"] {
+        background: #f1f3f5;
+        padding: 10px;
+        border-radius: 15px;
+        border: none;
+    }
+    
+    /* Modern Kart Tasarımı */
+    .player-card {
+        background: white;
+        padding: 20px;
+        border-radius: 20px;
+        border: 1px solid #f0f0f0;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.03);
+        text-align: center;
+        margin-bottom: 15px;
+    }
+    .player-score {
+        background: #101828;
+        color: #00d084;
+        font-size: 24px;
+        font-weight: 800;
+        padding: 5px 15px;
+        border-radius: 12px;
+        display: inline-block;
+    }
+    
+    /* Karşılaştırma Tablosu */
+    .comparison-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- GENİŞLETİLMİŞ LİG & OYUNCU VERİSİ ---
+# --- VERİ SETİ ---
 if 'players_df' not in st.session_state:
     data = [
-        {"Name": "E. Haaland", "League": "Premier League", "Pos": "FW", "Price": 180, "Perf_Score": 88, "Gls_90": 1.12, "Ast_90": 0.15, "xG_90": 0.95, "SHT_90": 3.8, "Pass_Acc": 78},
-        {"Name": "K. De Bruyne", "League": "Premier League", "Pos": "MF", "Price": 90, "Perf_Score": 91, "Gls_90": 0.25, "Ast_90": 0.88, "xG_90": 0.22, "SHT_90": 2.1, "Pass_Acc": 84},
-        {"Name": "Vinícius Jr.", "League": "La Liga", "Pos": "FW", "Price": 150, "Perf_Score": 94, "Gls_90": 0.65, "Ast_90": 0.40, "xG_90": 0.55, "SHT_90": 3.2, "Pass_Acc": 82},
-        {"Name": "J. Bellingham", "League": "La Liga", "Pos": "MF", "Price": 120, "Perf_Score": 89, "Gls_90": 0.45, "Ast_90": 0.30, "xG_90": 0.35, "SHT_90": 1.8, "Pass_Acc": 88},
-        {"Name": "H. Kane", "League": "Bundesliga", "Pos": "FW", "Price": 110, "Perf_Score": 92, "Gls_90": 1.05, "Ast_90": 0.20, "xG_90": 0.85, "SHT_90": 3.5, "Pass_Acc": 80},
-        {"Name": "Lautaro Martínez", "League": "Serie A", "Pos": "FW", "Price": 110, "Perf_Score": 87, "Gls_90": 0.75, "Ast_90": 0.15, "xG_90": 0.65, "SHT_90": 3.0, "Pass_Acc": 75},
-        {"Name": "K. Mbappé", "League": "Ligue 1", "Pos": "FW", "Price": 180, "Perf_Score": 95, "Gls_90": 0.95, "Ast_90": 0.25, "xG_90": 0.80, "SHT_90": 4.2, "Pass_Acc": 83}
+        {"Name": "E. Haaland", "Team": "Man City", "League": "Premier League", "Pos": "FW", "Price": 180, "Perf": 88, "Gls": 1.12, "Ast": 0.15, "xG": 0.95, "SHT": 3.8, "Pass": 78},
+        {"Name": "K. De Bruyne", "Team": "Man City", "League": "Premier League", "Pos": "MF", "Price": 90, "Perf": 91, "Gls": 0.25, "Ast": 0.88, "xG": 0.22, "SHT": 2.1, "Pass": 84},
+        {"Name": "Vinícius Jr.", "Team": "Real Madrid", "League": "La Liga", "Pos": "FW", "Price": 150, "Perf": 94, "Gls": 0.65, "Ast": 0.40, "xG": 0.55, "SHT": 3.2, "Pass": 82},
+        {"Name": "J. Bellingham", "Team": "Real Madrid", "League": "La Liga", "Pos": "MF", "Price": 120, "Perf": 89, "Gls": 0.45, "Ast": 0.30, "xG": 0.35, "SHT": 1.8, "Pass": 88}
     ]
     st.session_state.players_df = pd.DataFrame(data)
 
-if 'compare_list' not in st.session_state:
-    st.session_state.compare_list = []
+# --- SIDEBAR & NAV ---
+page = st.sidebar.radio("Navigation", ["🏠 Home", "🏟️ Live Center", "⚔️ Comparison", "🔐 Admin"])
 
-# --- NAVİGASYON ---
-page = st.sidebar.radio("Menü", ["🏠 Ana Sayfa", "🏟️ Canlı Sonuçlar", "⚔️ Oyuncu Karşılaştırma", "🔐 Admin"])
-
-# --- 1. ANA SAYFA (LİG BAZLI HAFTALIK DEĞERLENDİRME) ---
-if page == "🏠 Ana Sayfa":
-    st.title("🏆 Haftalık Performans Değerlendirmesi")
+# --- 1. HOME (DRIBBBLE LEAGUE TABS) ---
+if page == "🏠 Home":
+    st.title("Elite Performers")
     
-    # Lig Seçimi (Yan Yana)
-    leagues = ["Premier League", "La Liga", "Bundesliga", "Serie A", "Ligue 1"]
-    selected_league = st.radio("LİG SEÇİN:", leagues, horizontal=True)
+    # Lig Seçimi (Tabs gibi duran radio)
+    leagues = ["Premier League", "La Liga", "Bundesliga", "Serie A"]
+    selected_league = st.radio("Choose League", leagues, horizontal=True, label_visibility="collapsed")
     
     st.divider()
     
-    # Seçilen Lige Göre Oyuncuları Filtrele
-    filtered_df = st.session_state.players_df[st.session_state.players_df['League'] == selected_league].sort_values(by="Perf_Score", ascending=False)
+    # Oyuncu Kartları
+    f_df = st.session_state.players_df[st.session_state.players_df['League'] == selected_league]
     
-    st.subheader(f"🔥 {selected_league} - Haftanın En İyileri")
-    
-    # Oyuncu Kartları (Özet)
-    cols = st.columns(len(filtered_df) if len(filtered_df) > 0 else 1)
-    for i, (_, row) in enumerate(filtered_df.iterrows()):
-        with cols[i]:
-            st.markdown(f"""
-                <div style="background-color:#f1f3f5; padding:15px; border-radius:10px; border-top: 5px solid #00d084;">
-                    <h4 style="margin:0;">{row['Name']}</h4>
-                    <p style="color:gray; margin:0;">{row['Pos']}</p>
-                    <h2 style="margin:10px 0; color:#101828;">{row['Perf_Score']}</h2>
-                    <p style="font-size:12px;">Haftalık Performans</p>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button(f"Kıyasla: {row['Name']}", key=f"btn_{row['Name']}"):
-                st.session_state.compare_list.append(row['Name'])
-                st.toast(f"{row['Name']} listeye eklendi!")
+    if not f_df.empty:
+        cols = st.columns(3)
+        for idx, (_, row) in enumerate(f_df.iterrows()):
+            with cols[idx % 3]:
+                st.markdown(f"""
+                    <div class="player-card">
+                        <p style="color:gray; font-size:12px; margin:0;">{row['Team']}</p>
+                        <h3 style="margin:5px 0;">{row['Name']}</h3>
+                        <div class="player-score">{row['Perf']}</div>
+                        <p style="font-size:12px; margin-top:5px; color:#666;">Opta Rating</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                if st.button(f"Analyze {row['Name']}", key=row['Name']):
+                    st.toast(f"Detail view for {row['Name']}")
+    else:
+        st.info("No data available for this league yet.")
 
-# --- 2. CANLI SONUÇLAR ---
-elif page == "🏟️ Canlı Sonuçlar":
-    st.title("🏟️ Canlı Maç Merkezi")
-    # Sadeleştirilmiş Maç Listesi
-    c1, c2, c3 = st.columns([2, 1, 2])
-    c1.subheader("Man City")
-    c2.markdown("<h2 style='text-align:center;'>2 - 1</h2>", unsafe_allow_html=True)
-    c3.subheader("Arsenal")
-    st.caption("Maç Sonu: Oyuncu verileri işleniyor...")
+# --- 2. LIVE CENTER ---
+elif page == "🏟️ Live Center":
+    st.title("Live Match Day")
+    # Modern Maç Kartı
+    st.markdown("""
+        <div style="background:white; padding:30px; border-radius:25px; text-align:center; border: 1px solid #f0f0f0;">
+            <div style="display:flex; justify-content:space-around; align-items:center;">
+                <div><h2 style="margin:0;">MC</h2><p>Man City</p></div>
+                <div><h1 style="margin:0; font-size:48px;">2 - 1</h1><span style="color:red; font-weight:bold;">LIVE 78'</span></div>
+                <div><h2 style="margin:0;">ARS</h2><p>Arsenal</p></div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-# --- 3. OYUNCU KARŞILAŞTIRMA (SPORTBASE TASARIMI) ---
-elif page == "⚔️ Oyuncu Karşılaştırma":
-    st.title("⚔️ Karşılaştırma Arenası")
-    
+# --- 3. COMPARISON (CLEAN DATA VIEW) ---
+elif page == "⚔️ Comparison":
+    st.title("Head to Head")
     names = st.session_state.players_df['Name'].tolist()
-    col1, col2 = st.columns(2)
-    p1 = col1.selectbox("1. Oyuncu", names, index=0)
-    p2 = col2.selectbox("2. Oyuncu", names, index=1)
+    c1, c2 = st.columns(2)
+    p1 = c1.selectbox("First Player", names, index=0)
+    p2 = c2.selectbox("Second Player", names, index=1)
     
     d1 = st.session_state.players_df[st.session_state.players_df['Name'] == p1].iloc[0]
     d2 = st.session_state.players_df[st.session_state.players_df['Name'] == p2].iloc[0]
     
-    # Sportbase Stil Tablo Tasarımı
-    st.markdown("### 📊 Detaylı İstatistik Karşılaştırması (90 dk)")
+    st.divider()
     
-    comparison_data = {
-        "İstatistik": ["Performans Puanı", "Gol", "Asist", "Beklenen Gol (xG)", "Şut", "Pas İsabeti %"],
-        p1: [d1['Perf_Score'], d1['Gls_90'], d1['Ast_90'], d1['xG_90'], d1['SHT_90'], f"%{d1['Pass_Acc']}"],
-        p2: [d2['Perf_Score'], d2['Gls_90'], d2['Ast_90'], d2['xG_90'], d2['SHT_90'], f"%{d2['Pass_Acc']}"]
-    }
+    # Modern Satır Bazlı Karşılaştırma
+    metrics = [("Goals/90", "Gls"), ("Assists/90", "Ast"), ("Expected Goals", "xG"), ("Shots/90", "SHT"), ("Pass Accuracy", "Pass")]
     
-    df_table = pd.DataFrame(comparison_data)
-    st.table(df_table) # Şimdilik en stabil ve temiz görünüm
+    for label, key in metrics:
+        st.markdown(f"""
+            <div class="comparison-row">
+                <div style="font-weight:bold; color:#007bff; width:20%;">{d1[key]}</div>
+                <div style="color:gray; text-align:center; width:60%;">{label}</div>
+                <div style="font-weight:bold; color:#00d084; width:20%; text-align:right;">{d2[key]}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
 # --- 4. ADMIN ---
 elif page == "🔐 Admin":
-    st.title("🔐 Veri Girişi")
-    target = st.selectbox("Oyuncu Seç", st.session_state.players_df['Name'])
-    new_score = st.slider("Haftalık Performans Puanı", 0, 100, 85)
-    if st.button("Veriyi Güncelle"):
-        st.session_state.players_df.loc[st.session_state.players_df['Name'] == target, 'Perf_Score'] = new_score
-        st.success("Haftalık değerlendirme güncellendi!")
+    st.title("Data Management")
+    target = st.selectbox("Player", st.session_state.players_df['Name'])
+    score = st.slider("Update Performance", 0, 100, 90)
+    if st.button("Commit Change"):
+        st.session_state.players_df.loc[st.session_state.players_df['Name'] == target, 'Perf'] = score
+        st.success("Database Updated")
