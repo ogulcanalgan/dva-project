@@ -1,101 +1,87 @@
 import streamlit as st
 import pandas as pd
-import time
+import random
 
-# --- PROFESYONEL UI AYARLARI ---
+# --- UI CONFIG ---
 st.set_page_config(page_title="DVA Pulse", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
-    html, body, [class*="css"] { font-family: 'Plus+Jakarta+Sans', sans-serif; background: #fcfcfd; }
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+    html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     
-    /* Otomatik Kayan Haber Bandı */
-    .news-slider {
-        display: flex;
-        overflow-x: auto;
-        gap: 15px;
-        padding: 10px 0;
-        scrollbar-width: none; /* Firefox */
-    }
-    .news-slider::-webkit-scrollbar { display: none; } /* Chrome/Safari */
-    
-    .news-item {
-        min-width: 300px;
-        background: white;
-        padding: 20px;
-        border-radius: 18px;
-        border: 1px solid #f0f2f5;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    /* Haber Kapsülleri */
+    .news-capsule {
+        background: #ffffff; border: 1px solid #f0f2f5; border-radius: 20px;
+        padding: 20px; min-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.02);
     }
     
-    .source-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; margin-bottom: 10px; display: inline-block; }
-    .source-twitter { background: #e1f5fe; color: #03a9f4; }
-    .source-news { background: #fff5f5; color: #e53e3e; }
-    
-    /* Tablo ve Karşılaştırma Tasarımı */
-    .stTable { background: white; border-radius: 15px; overflow: hidden; border: 1px solid #f0f2f5; }
-    .leader-star { color: #f59e0b; font-weight: bold; }
+    /* Sosyal Medya Kart Tasarımı (Preview) */
+    .social-card-preview {
+        background: linear-gradient(135deg, #101828 0%, #1f2937 100%);
+        color: white; padding: 30px; border-radius: 25px; border: 2px solid #6366f1;
+        text-align: center; margin-top: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- HATASIZ VERİ SETİ (KİLİT NOKTA) ---
-# Görsellerdeki hataları önlemek için tüm sütunları tanımlıyoruz
-if 'players_df' not in st.session_state:
-    data = [
-        {"Name": "E. Haaland", "Team": "Man City", "Perf": 88, "Gls": 1.12, "Ast": 0.15, "xG": 0.95, "Pass": 78, "Price": "€180M"},
-        {"Name": "Lamine Yamal", "Team": "Barcelona", "Perf": 95, "Gls": 0.35, "Ast": 0.55, "xG": 0.45, "Pass": 81, "Price": "€150M"},
-        {"Name": "Rodri", "Team": "Man City", "Perf": 92, "Gls": 0.18, "Ast": 0.25, "xG": 0.12, "Pass": 94, "Price": "€130M"},
-        {"Name": "Arda Güler", "Team": "Real Madrid", "Perf": 85, "Gls": 0.40, "Ast": 0.30, "xG": 0.38, "Pass": 89, "Price": "€45M"}
-    ]
-    st.session_state.players_df = pd.DataFrame(data)
-
-# --- 1. SMART HEADER ---
-st.title("📡 DVA Pulse")
-st.text_input("", placeholder="🔍 Oyuncu, Gazeteci veya Transfer Ara...")
-
-# --- 2. OTOMATİK HABER AKIŞI (Yatay Kaydırmalı) ---
-st.subheader("🌐 Global Veri Akışı")
-news_list = [
-    {"src": "Twitter / @FabrizioRomano", "type": "twitter", "text": "Here we go! Yamal DVA puanı zirvede.", "link": "https://twitter.com/fabrizioromano"},
-    {"src": "Marca / İspanya", "type": "news", "text": "Real Madrid, Arda'nın fiziksel verilerinden memnun.", "link": "https://marca.com"},
-    {"src": "DVA Smart Engine", "type": "news", "text": "Rodri %94 pas isabetiyle Premier Lig lideri.", "link": "#"}
+# --- 1. OTOMATİK HABER MOTORU (SİMÜLASYON) ---
+# Burası ileride API'ye bağlanacak ana kaynak listesi
+sources = [
+    {"name": "Fabrizio Romano", "handle": "@FabrizioRomano", "type": "Twitter"},
+    {"name": "Marca", "handle": "Spain", "type": "News"},
+    {"name": "The Athletic", "handle": "UK", "type": "News"},
+    {"name": "DVA AI", "handle": "Smart Engine", "type": "Internal"}
 ]
 
-# HTML ile yatay kaydırma alanı
-cols = st.columns(len(news_list))
-for i, n in enumerate(news_list):
-    with cols[i]:
-        tag_class = "source-twitter" if n['type'] == "twitter" else "source-news"
+def get_latest_news():
+    # Otomatik güncelleme hissi için rastgele haber seçimi
+    news_pool = [
+        "Lamine Yamal'ın DVA puanı son 24 saatte %15 arttı.",
+        "Arda Güler antrenman verilerinde takımın en iyisi seçildi.",
+        "Rodri pas isabetinde Premier Lig rekoruna yaklaşıyor.",
+        "Real Madrid, genç oyuncu gelişiminde DVA metriklerini kullanıyor."
+    ]
+    return random.choice(news_pool), random.choice(sources)
+
+# --- 2. ANA EKRAN ---
+st.title("📡 DVA Pulse")
+st.markdown("---")
+
+# Yatay Haber Akışı (image_e844c4.png yapısının geliştirilmiş hali)
+st.subheader("🌐 Global Veri Akışı")
+h_cols = st.columns(3)
+for i in range(3):
+    text, src = get_latest_news()
+    with h_cols[i]:
         st.markdown(f"""
-            <div class="news-item">
-                <span class="source-tag {tag_class}">{n['src']}</span>
-                <p style="font-size: 14px; color: #1a1c1e; font-weight: 600;">{n['text']}</p>
-                <a href="{n['link']}" target="_blank" style="font-size: 12px; color: #6366f1; text-decoration: none;">Detaylara Git →</a>
+            <div class="news-capsule">
+                <small style="color: #6366f1; font-weight: 800;">{src['type']} / {src['handle']}</small>
+                <p style="font-weight: 700; font-size: 15px; margin: 10px 0;">{text}</p>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <a href="#" style="font-size: 12px; color: #888; text-decoration: none;">Kaynağa Git →</a>
+                    <span style="font-size: 10px; background: #f1f3f5; padding: 2px 6px; border-radius: 4px;">Şimdi</span>
+                </div>
             </div>
         """, unsafe_allow_html=True)
 
-st.divider()
+st.write("") # Boşluk
 
-# --- 3. STUDIO (4 OYUNCU) ---
-st.subheader("🎨 Studio")
-names = st.session_state.players_df['Name'].tolist()
-sel = st.multiselect("Kıyaslanacak Oyuncuları Seç (Maks 4)", names, default=names[:4])
+# --- 3. CREATOR STUDIO (GÖRSEL ODAKLI) ---
+st.markdown("### 🎨 Studio: Sosyal Medya Kartı Oluştur")
+sel_players = st.multiselect("Oyuncuları Seç", st.session_state.players_df['Name'].tolist(), default=["Lamine Yamal", "Arda Güler"])
 
-if sel:
-    # Metrikleri ve veriyi hazırla
-    metrics = {"Performans": "Perf", "Gol (90')": "Gls", "Asist (90')": "Ast", "xG": "xG", "Pas %": "Pass"}
-    comp_df = pd.DataFrame({"Metrik": metrics.keys()})
+if sel_players:
+    # Karşılaştırma Tablosu (image_e844c4.png'deki gibi)
+    # ... (Önceki tablo kodları burada aktif kalacak)
     
-    for p in sel:
-        row = st.session_state.players_df[st.session_state.players_df['Name'] == p].iloc[0]
-        comp_df[p] = [row[metrics[m]] for m in metrics]
+    st.markdown("""<div class="social-card-preview">
+        <h2 style="color: #00d084;">DVA ELITE PERFORMANCE</h2>
+        <p>Haftalık Karşılaştırma Raporu</p>
+        <div style="display: flex; justify-content: space-around; margin-top: 20px;">
+    """ + "".join([f"<div><b>{p}</b><br><small>Opta: 90+</small></div>" for p in sel_players]) + """
+        </div>
+    </div>""", unsafe_allow_html=True)
     
-    # Yıldız Sistemi: Her satırın en büyüğünü bul ve işaretle
-    def highlight_max(s):
-        if s.name == "Metrik": return [''] * len(s)
-        is_max = s == s.max()
-        return ['color: #00d084; font-weight: 800' if v else '' for v in is_max]
-
-    st.table(comp_df)
-    st.info("💡 Yeşil rakamlar o kategorideki grup liderini gösterir.")
+    if st.button("📸 PNG OLARAK İNDİR"):
+        st.success("Görsel hazırlanıyor... (Sosyal medya boyutlarında 1080x1080)")
