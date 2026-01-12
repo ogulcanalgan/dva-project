@@ -1,70 +1,91 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
-# --- MOBILE-FIRST UI CONFIG ---
+# --- MOBILE-FIRST & CLEAN UI ---
 st.set_page_config(page_title="DVA Pulse", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #ffffff; }
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+    html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     
-    /* Üst Borsa Şeridi (Ticker) */
-    .ticker-wrap { background: #101828; color: #00d084; padding: 10px; overflow: hidden; white-space: nowrap; font-weight: bold; font-size: 14px; }
+    /* Haber Kutuları (Twitter & Gazete Ayrımı) */
+    .news-box { 
+        background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04); border-left: 5px solid #1DA1F2; /* Twitter Mavisi */
+    }
+    .gazete-box { border-left: 5px solid #dc3545; } /* Gazete Kırmızısı */
     
-    /* Mobil Uyumlu Haber Kartları */
-    .news-card { border-left: 4px solid #007bff; padding: 10px; background: #f8f9fa; border-radius: 5px; margin-bottom: 10px; font-size: 13px; }
-    .news-source { color: #6c757d; font-size: 11px; text-transform: uppercase; }
+    .news-header { font-size: 11px; color: #888; font-weight: 800; text-transform: uppercase; margin-bottom: 5px; }
+    .tweet-link { color: #1DA1F2; text-decoration: none; font-weight: 600; }
     
-    /* Creator Studio Butonu */
-    .creator-btn { background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%); color: white; padding: 20px; border-radius: 15px; text-align: center; font-weight: 800; cursor: pointer; margin-bottom: 20px; }
+    /* Studio Header */
+    .studio-card {
+        background: #101828; color: white; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 1. ÜST ŞERİT (TICKER) ---
-st.markdown("""
-    <div class="ticker-wrap">
-        🔥 Lamine Yamal (Barça) Performance +12% ↑ | ⚡ Arda Güler Hype +45% ↑ | 📉 K. De Bruyne Injury Risk Alert | ⚽ Haaland Opta Point: 98.2
-    </div>
-    """, unsafe_allow_html=True)
+# --- VERİ SETİ ---
+if 'players_df' not in st.session_state:
+    st.session_state.players_df = pd.DataFrame([
+        {"Name": "E. Haaland", "Team": "Man City", "Perf": 88, "Gls": 1.12, "Ast": 0.15, "xG": 0.95, "Pass": 78},
+        {"Name": "Lamine Yamal", "Team": "Barcelona", "Perf": 95, "Gls": 0.35, "Ast": 0.55, "xG": 0.45, "Pass": 81},
+        {"Name": "Rodri", "Team": "Man City", "Perf": 92, "Gls": 0.18, "Ast": 0.25, "xG": 0.12, "Pass": 94},
+        {"Name": "Arda Güler", "Team": "Real Madrid", "Perf": 85, "Gls": 0.40, "Ast": 0.30, "xG": 0.38, "Pass": 89}
+    ])
 
-# --- 2. ANA ARAMA (AI SIMILARITY FOCUS) ---
+# --- 1. TICKER & SEARCH ---
+st.markdown('<div style="background:#f1f3f5; padding:8px; border-radius:8px; font-size:12px; text-align:center;"><b>HYPE:</b> Arda Güler +45% | <b>ALERT:</b> Rodri %94 Pas İsabeti</div>', unsafe_allow_html=True)
 st.title("📡 DVA Pulse")
-search_query = st.text_input("", placeholder="🔍 Oyuncu ara veya 'Rodri'nin benzerini bul' yaz...")
+st.text_input("", placeholder="🔍 Fabrizio Romano, Marca veya 'Haaland' ara...")
 
-# --- 3. MERKEZİ YERLEŞİM ---
-col_main, col_side = st.columns([2, 1])
+tab_feed, tab_studio = st.tabs(["🏠 Akış", "🎨 Studio"])
 
-with col_main:
-    # Creator Studio Hızlı Erişim
-    st.markdown('<div class="creator-btn">🎨 CREATOR STUDIO: 4 OYUNCU KIYASLA (ÜCRETSİZ)</div>', unsafe_allow_html=True)
-    
-    # Haber Akışı (Referanslı)
-    st.subheader("📰 Son Veri Haberleri")
-    news_data = [
-        {"text": "Fabrizio Romano: Manchester City, Haaland'ın sözleşmesi için yeni verileri inceliyor.", "src": "Twitter / @FabrizioRomano"},
-        {"text": "L'Equipe: Mbappe'nin sprint hızı Real Madrid'deki ilk maçında %5 düştü.", "src": "L'Equipe / France"},
-        {"text": "DVA Insight: Kerem Aktürkoğlu son 3 maçta xG değerini 2.4 katına çıkardı.", "src": "DVA Smart Engine"}
-    ]
-    for n in news_data:
+# --- 2. AKIŞ (HABER & TWITTER) ---
+with tab_feed:
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("🌐 Global Veri Akışı")
+        
+        # Twitter Örneği (Referanslı)
         st.markdown(f"""
-            <div class="news-card">
-                <div class="news-source">{n['src']}</div>
-                <div>{n['text']}</div>
+            <div class="news-box">
+                <div class="news-header">🐦 Twitter / @FabrizioRomano</div>
+                <div><b>Here we go!</b> Lamine Yamal'ın performans puanı DVA verilerinde 95'e ulaştı. Yeni sözleşme görüşmeleri başlıyor.</div>
+                <a href="https://twitter.com/FabrizioRomano" class="tweet-link">Tweet'e Git →</a>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("Veriyi İncele: Yamal", key="yamal_btn"): st.toast("Veri Sayfası Hazırlanıyor...")
+
+        # Gazete Örneği
+        st.markdown(f"""
+            <div class="news-box gazete-box">
+                <div class="news-header">📰 Marca / İspanya</div>
+                <div>Real Madrid'de Arda Güler etkisi: Antrenman verileri son 1 ayın en yüksek seviyesinde.</div>
+                <a href="https://www.marca.com" style="color:#dc3545; font-weight:600; text-decoration:none;">Habere Git →</a>
             </div>
         """, unsafe_allow_html=True)
 
-with col_side:
-    # Haftalık Performans Liderleri (Minimalist)
-    st.subheader("🔝 Liderler")
-    st.session_state.players_df = pd.DataFrame([
-        {"Name": "Yamal", "P": 94}, {"Name": "Rodri", "P": 92}, {"Name": "Saka", "P": 89}
-    ])
-    for _, r in st.session_state.players_df.iterrows():
-        st.write(f"**{r['Name']}** • {r['P']}")
+    with col2:
+        st.subheader("🔥 Trendler")
+        st.write("**#Transfer** • **#OptaPoints**")
 
-# --- 4. 4'LÜ KIYASLAMA ALANI (TASLAK) ---
-if st.checkbox("4'lü Karşılaştırmayı Başlat"):
-    st.info("Burada 4 oyuncu seçimi ve şık Creator Studio tasarımı yer alacak.")
-    # (Buraya daha sonra 4'lü seçim kutuları ve tablo yerleşimi gelecek)
+# --- 3. STUDIO (4 OYUNCU) ---
+with tab_studio:
+    st.markdown('<div class="studio-card">CREATOR STUDIO</div>', unsafe_allow_html=True)
+    
+    names = st.session_state.players_df['Name'].tolist()
+    c = st.columns(4)
+    p_sel = [c[i].selectbox(f"Oyuncu {i+1}", names, index=i) for i in range(4)]
+    
+    # Kıyaslama Tablosu (Sade ve Görsel Odaklı)
+    metrics = {"Haftalık Puan": "Perf", "Gol (90')": "Gls", "Asist (90')": "Ast", "xG": "xG", "Pas %": "Pass"}
+    comp_df = pd.DataFrame({"Metrik": metrics.keys()})
+    
+    for p in p_sel:
+        row = st.session_state.players_df[st.session_state.players_df['Name'] == p].iloc[0]
+        comp_df[p] = [row[metrics[m]] for m in metrics]
+    
+    st.table(comp_df)
+    st.caption("Not: Oyuncu görselleri profil sayfaları tamamlandığında buraya eklenecektir.")
