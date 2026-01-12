@@ -1,89 +1,86 @@
 import streamlit as st
 import pandas as pd
-import random
 
-# --- 1. GLOBAL UI CONFIG ---
-st.set_page_config(page_title="DVA Terminal v3.0", layout="wide", initial_sidebar_state="collapsed")
+# --- CONFIG ---
+st.set_page_config(page_title="DVA Terminal v3.1", layout="wide", initial_sidebar_state="collapsed")
 
-# Tüm sayfaları kontrol eden merkezi state yönetimi
+# Session State
 if 'nav' not in st.session_state: 
-    st.session_state.nav = {'page': 'DASHBOARD', 'target': None, 'sub': 'STATS'}
+    st.session_state.nav = {'page': 'HUB', 'target': None}
 
 def navigate(page, target=None):
     st.session_state.nav['page'] = page
     st.session_state.nav['target'] = target
     st.rerun()
 
+# --- CSS: Kartın TAMAMINI tıklanabilir yapma ve Haber Stili ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
     * { font-family: 'Plus Jakarta Sans', sans-serif; }
     
-    /* Maçkolik & Transfermarkt Hibrit Kart Tasarımı */
-    .card-base { 
-        background: white; border-radius: 20px; padding: 25px; 
-        border: 1px solid #f1f5f9; position: relative; transition: 0.3s;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 20px;
-    }
-    .card-base:hover { border-color: #6366f1; transform: translateY(-5px); }
+    /* Haber Kartları (image_e8a608) */
+    .news-card { background: white; border-radius: 15px; padding: 15px; border-left: 5px solid #6366f1; margin-bottom: 10px; height: 120px; }
     
-    /* Tıklanabilir Alanlar İçin CSS */
-    .clickable-overlay {
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        z-index: 10; cursor: pointer; background: transparent;
+    /* Piyasa Kartları (Tamamı Tıklanabilir Buton) */
+    div.stButton > button {
+        width: 100%; height: 200px; border-radius: 20px; border: 1px solid #f1f5f9;
+        background: white; color: #0f172a; text-align: left; padding: 25px;
+        transition: 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
+    div.stButton > button:hover { border-color: #6366f1; transform: translateY(-5px); box-shadow: 0 12px 24px rgba(0,0,0,0.08); }
     
-    .live-dot { height: 10px; width: 10px; background-color: #ff4b4b; border-radius: 50%; display: inline-block; margin-right: 5px; }
-    .price-tag { color: #00d084; font-weight: 800; font-size: 22px; }
+    .price { color: #00d084; font-size: 24px; font-weight: 800; display: block; margin-top: 10px; }
+    .club-label { color: #64748b; font-size: 14px; font-weight: 600; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. DİNAMİK NAVİGASYON MOTORU ---
-
-# A. ANA PANEL (TREND RADAR & MARKET)
-if st.session_state.nav['page'] == 'DASHBOARD':
+# --- PAGE: GLOBAL HUB ---
+if st.session_state.nav['page'] == 'HUB':
     st.title("📡 DVA Global Radar")
     
-    # Canlı Maçlar Üst Bar (image_f2c0f0 ilhamı)
+    # 1. Haber Kaynağı (image_e8a608'deki eksik kısım)
+    st.markdown("### 🌍 Global & Yerel Veri Akışı")
+    n1, n2, n3 = st.columns(3)
+    news = [
+        {"src": "@burhancanterzi", "msg": "Galatasaray'da orta saha transferi için liste daraldı."},
+        {"src": "@yunusemresel", "msg": "Trabzonspor'da golcü arayışlarında yeni rota Kuzey Avrupa."},
+        {"src": "@yagosabuncuoglu", "msg": "Fenerbahçe, En-Nesyri için son teklifini yaptı."}
+    ]
+    for i, n in enumerate(news):
+        with [n1, n2, n3][i]:
+            st.markdown(f"<div class='news-card'><b>{n['src']}</b><br><small>{n['msg']}</small></div>", unsafe_allow_html=True)
+
+    st.divider()
+
+    # 2. Canlı Skorlar Şeridi (image_f2c0f0)
     st.markdown("### 🏟️ Canlı Skorlar")
     m_cols = st.columns(3)
     matches = [("GS", "2-1", "BJK", "78'"), ("RM", "0-0", "BAR", "21'"), ("MC", "3-2", "LIV", "MS")]
     for i, (h, s, a, t) in enumerate(matches):
-        with m_cols[i]:
-            if st.button(f"{h} {s} {a} ({t})", key=f"match_{i}", use_container_width=True):
-                navigate('MATCH_DETAIL', target=f"{h} v {a}")
+        if m_cols[i].button(f"🏟️ {h} {s} {a} | {t}", key=f"m_{i}"):
+            navigate('MATCH', target=f"{h} v {a}")
 
     st.divider()
 
-    # Trend Oyuncular (image_f2b9cb ilhamı - Kartın her yeri tıklanabilir)
-    st.markdown("### 🔥 Market Heat (Piyasa Değerleri)")
+    # 3. Market Heat (Tam Tıklanabilir Kartlar - image_f2b9cb)
+    st.markdown("### 🔥 Market Heat (Analitik Değerler)")
     p_cols = st.columns(3)
     players = [
-        {"name": "Semih Kılıçsoy", "val": "€22.1M", "club": "Beşiktaş"},
-        {"name": "Arda Güler", "val": "€68.4M", "club": "Real Madrid"},
-        {"name": "Ferdi Kadıoğlu", "val": "€35.0M", "club": "Brighton"}
+        {"n": "Semih Kılıçsoy", "v": "€22.1M", "c": "BEŞİKTAŞ"},
+        {"n": "Arda Güler", "v": "€68.4M", "c": "REAL MADRID"},
+        {"n": "Ferdi Kadıoğlu", "v": "€35.0M", "c": "BRIGHTON"}
     ]
     for i, p in enumerate(players):
         with p_cols[i]:
-            st.markdown(f"""
-                <div class="card-base">
-                    <small style="color: #6366f1;">{p['club']}</small>
-                    <h2>{p['name']}</h2>
-                    <div class="price-tag">{p['val']}</div>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button(f"Detay: {p['name']}", key=f"pbtn_{i}", use_container_width=True):
-                navigate('PLAYER_PROFILE', target=p['name'])
+            # Kartın tamamını butonun içine gömdük
+            btn_label = f"{p['c']}\n{p['n']}\n\n{p['v']}"
+            if st.button(btn_label, key=f"p_{i}"):
+                navigate('PROFILE', target=p['n'])
 
-# B. MAÇ DETAY SAYFASI (MAÇKOLİK MODU)
-elif st.session_state.nav['page'] == 'MATCH_DETAIL':
-    if st.button("← Geri Dön"): navigate('DASHBOARD')
-    st.header(f"🏟️ {st.session_state.nav['target']} | Maç Analitiği")
+# --- PAGE: MATCH DETAIL (Maçkolik Modu) ---
+elif st.session_state.nav['page'] == 'MATCH':
+    if st.button("← Terminale Dön"): navigate('HUB')
+    st.header(f"🏟️ {st.session_state.nav['target']} | Analiz")
     
-    # Maçkolik Sekmeleri (image_f2c0f0)
-    tabs = st.tabs(["📊 İstatistik", "📋 Kadrolar", "📉 Puan Durumu", "📅 Fikstür"])
-    
-    with tabs[0]: # İstatistik
-        c1, c2, c3 = st.columns(3)
-        c1.metric("xG (Beklenen Gol)", "1.84 - 0.92")
-        c2
+    t1, t2, t3 = st.tabs(["📊 İstatistik", "📋 Kadrol
