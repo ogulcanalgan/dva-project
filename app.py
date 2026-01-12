@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import random
 
-# --- UI ARCHITECTURE (Clean UI Style) ---
-st.set_page_config(page_title="DVA Pulse Terminal", layout="wide", initial_sidebar_state="collapsed")
+# --- UI ARCHITECTURE ---
+st.set_page_config(page_title="DVA Terminal", layout="wide", initial_sidebar_state="collapsed")
 
-# Session State Initialization (Kritik: Sayfalar arası geçişi sağlar)
+# Session State
 if 'page' not in st.session_state: st.session_state.page = 'main'
 if 'target' not in st.session_state: st.session_state.target = None
 
@@ -14,102 +14,113 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
     html, body, [class*="css"] { font-family: 'Plus+Jakarta+Sans', sans-serif; background: #fcfcfd; }
 
-    /* Match Center - image_e8c0aa Tarzı */
-    .match-header { 
-        display: flex; gap: 12px; padding: 15px; background: white; 
-        border-bottom: 2px solid #6366f1; position: sticky; top: 0; z-index: 999; 
+    /* Market Heat - Tıklanabilir Kartlar (image_f2b9cb.png iyileştirmesi) */
+    .stButton > button { border-radius: 20px; }
+    .clickable-card {
+        position: relative; background: white; border-radius: 28px; padding: 30px; 
+        border: 1px solid #f1f5f9; transition: all 0.3s ease; height: 220px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.02);
     }
+    .clickable-card:hover { transform: translateY(-8px); border-color: #6366f1; box-shadow: 0 20px 40px rgba(99, 102, 241, 0.1); }
     
-    /* Market Heat Kartları - image_e8c0c9 İlhamlı */
-    .heat-card { 
-        background: white; border-radius: 28px; padding: 25px; border: 1px solid #f1f5f9; 
-        transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-        margin-bottom: 10px;
+    /* Butonu Tüm Karta Yayma */
+    .card-overlay-btn {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: transparent; border: none; cursor: pointer; z-index: 10;
     }
-    .heat-card:hover { transform: translateY(-5px); border-color: #6366f1; }
 
-    /* Oyuncu Profil Header (1 Numara / Clean UI) */
-    .pro-header {
-        background: #0f172a; color: white; padding: 45px; border-radius: 35px;
-        position: relative; border: 1px solid #1e293b;
-    }
-    .dva-tag { 
-        position: absolute; right: 40px; top: 40px; background: #00d084; 
-        color: #0f172a; padding: 10px 20px; border-radius: 15px; font-weight: 800; 
-    }
+    /* Live Data Box - image_f2b9f1.png dolgusu */
+    .live-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
+    .stat-item { background: #f8fafc; padding: 15px; border-radius: 15px; text-align: center; border: 1px solid #e2e8f0; }
+
+    /* Oyuncu Profili - image_f2bd2f.png dolgusu */
+    .pro-banner { background: #0f172a; color: white; padding: 50px; border-radius: 35px; position: relative; overflow: hidden; }
+    .value-badge { background: #00d084; color: #0f172a; padding: 12px 24px; border-radius: 18px; font-weight: 800; float: right; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 1. MATCH CENTER (SABİT ÜST BAR) ---
-st.markdown('<div class="match-header">', unsafe_allow_html=True)
-# Hatalı satırlar tamamen temizlendi (image_f2a74a çözümü)
-matches = [("GS", "2-1", "BJK", "72'"), ("RM", "0-0", "BAR", "15'"), ("MC", "3-2", "LIV", "FT")]
-cols = st.columns([1, 1, 1, 2])
-for i, (t1, s, t2, time) in enumerate(matches):
+# --- 1. MATCH CENTER (ÜST ŞERİT) ---
+m_list = [("GS", "2-1", "BJK", "72'"), ("RM", "0-0", "BAR", "15'"), ("MC", "3-2", "LIV", "FT")]
+cols = st.columns(len(m_list) + 1)
+for i, (t1, s, t2, time) in enumerate(m_list):
     with cols[i]:
-        if st.button(f"{t1} {s} {t2}", key=f"match_{i}", use_container_width=True):
+        if st.button(f"{t1} {s} {t2}\n{time}", key=f"m_{i}", use_container_width=True):
             st.session_state.target = f"{t1} v {t2}"
             st.session_state.page = 'live'
             st.rerun()
-        st.markdown(f'<p style="text-align:center; color:red; font-size:11px; margin-top:-10px;">{time}</p>', unsafe_allow_html=True)
 
-# --- 2. DİNAMİK SAYFA YÖNETİMİ ---
+# --- 2. SAYFA YÖNETİMİ ---
 
 if st.session_state.page == 'main':
-    # --- ANA SAYFA (RADAR & TRENDLER) ---
     st.title("📡 Trend Radar")
-    n_cols = st.columns(3)
-    news = [
-        {"src": "𝕏 @yagosabuncuoglu", "m": "Arda Güler antrenmanda büyülemeye devam ediyor."},
-        {"src": "📰 MARCA", "m": "Real Madrid, Arda için özel gelişim programı uyguluyor."},
-        {"src": "🛡️ DVA", "m": "Kerem Aktürkoğlu xG verimliliğinde Benfica lideri."}
-    ]
-    for i, item in enumerate(news):
-        with n_cols[i]:
-            st.markdown(f'<div style="background:white; padding:20px; border-radius:20px; border-top:4px solid #6366f1;"><b>{item["src"]}</b><br><small>{item["m"]}</small></div>', unsafe_allow_html=True)
-
-    st.write("---")
-    st.subheader("🔥 Market Heat (Analitik Değerler)")
+    # Radar Kartları (image_f2b9cb.png)
     h_cols = st.columns(3)
     players = [
-        {"n": "Arda Güler", "v": "€68.4M", "c": "REAL MADRID"},
-        {"n": "Semih Kılıçsoy", "v": "€22.1M", "c": "BEŞİKTAŞ"},
-        {"n": "Ferdi Kadıoğlu", "v": "€35.0M", "c": "BRIGHTON"}
+        {"n": "Arda Güler", "v": "€68.4M", "t": "REAL MADRID", "s": "Hype: +45%"},
+        {"n": "Semih Kılıçsoy", "v": "€22.1M", "t": "BEŞİKTAŞ", "s": "Scout Score: 9.2"},
+        {"n": "Ferdi Kadıoğlu", "v": "€35.0M", "t": "BRIGHTON", "s": "DVA Index: 88"}
     ]
     for i, p in enumerate(players):
         with h_cols[i]:
-            st.markdown(f'<div class="heat-card"><small style="color:#6366f1; font-weight:800;">{p["c"]}</small><h2>{p["n"]}</h2><p style="color:#00d084; font-weight:800;">{p["v"]}</p></div>', unsafe_allow_html=True)
-            if st.button(f"Profil: {p['n']}", key=f"p_{i}", use_container_width=True):
+            st.markdown(f"""
+                <div class="clickable-card">
+                    <small style="color:#6366f1; font-weight:800;">{p['t']}</small>
+                    <h2 style="margin:10px 0;">{p['n']}</h2>
+                    <p style="color:#00d084; font-size:24px; font-weight:800; margin:0;">{p['v']}</p>
+                    <p style="color:#94a3b8; font-size:14px; margin-top:10px;">{p['s']}</p>
+                </div>
+            """, unsafe_allow_html=True)
+            # Kartın her yerine tıklama özelliği
+            if st.button(f"Giti {p['n']}", key=f"p_{i}", use_container_width=True):
                 st.session_state.target = p['n']
                 st.session_state.page = 'profile'
                 st.rerun()
 
-elif st.session_state.page == 'profile':
-    # --- OYUNCU ANALİTİK SAYFASI (image_e8c0c9) ---
-    if st.button("← Radar'a Dön"): 
-        st.session_state.page = 'main'
-        st.rerun()
-
+elif st.session_state.page == 'live':
+    # CANLI MAÇ SAYFASI (image_f2b9f1.png iyileştirmesi)
+    if st.button("← Terminale Dön"): st.session_state.page = 'main'; st.rerun()
+    
+    st.header(f"🏟️ {st.session_state.target} | Maç Analitiği")
     st.markdown(f"""
-        <div class="pro-header">
-            <div class="dva-tag">DVA VALUE: €68.4M</div>
-            <h1 style="margin:0; font-size:48px;">{st.session_state.target}</h1>
-            <p style="color:#94a3b8; margin-top:10px;">Analitik Potansiyel: +%52 | TM Değeri: €45M</p>
+        <div style="background:white; padding:30px; border-radius:25px; border:2px solid #6366f1;">
+            <h1 style="color:#6366f1; text-align:center;">DVA Canlı Rating: {random.uniform(7.5, 9.2):.1f}</h1>
+            <div class="live-stat-grid">
+                <div class="stat-item"><b>xG (Beklenen Gol)</b><br><span style="font-size:20px; color:#6366f1;">1.84 - 0.92</span></div>
+                <div class="stat-item"><b>Topla Oynama</b><br><span style="font-size:20px;">%54 - %46</span></div>
+                <div class="stat-item"><b>DVA Moment</b><br><span style="font-size:20px; color:#00d084;">Yüksek Baskı</span></div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+elif st.session_state.page == 'profile':
+    # OYUNCU PROFİLİ (image_f2bd2f.png iyileştirmesi)
+    if st.button("← Radar'a Dön"): st.session_state.page = 'main'; st.rerun()
+    
+    st.markdown(f"""
+        <div class="pro-banner">
+            <div class="value-badge">DVA VALUE: €68.4M</div>
+            <h1 style="font-size:50px; margin:0;">{st.session_state.target}</h1>
+            <p style="color:#94a3b8; margin-top:10px;">Potansiyel Tavan: +%52 | Form Durumu: Mükemmel</p>
         </div>
     """, unsafe_allow_html=True)
     
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        st.info("Oyuncu performans grafikleri ve analitik veri setleri burada yüklenir.")
-    with c2:
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("📊 Performans Trendi")
+        # Dolu grafik (image_e8c0c9 tarzı)
+        chart_data = pd.DataFrame({"Hafta": [1,2,3,4,5], "Puan": [7.2, 7.8, 8.1, 7.9, 8.8]})
+        st.line_chart(chart_data.set_index("Hafta"), color="#6366f1")
+    
+    with col2:
         st.subheader("📸 Creator Studio")
-        if st.button("📸 1080x1080 KART OLUŞTUR", use_container_width=True):
-            st.success("Tasarım Motoru: 1080x1080 PNG Hazırlanıyor...")
-
-elif st.session_state.page == 'live':
-    # --- CANLI MAÇ ANALİZİ (image_e8c0aa) ---
-    if st.button("← Terminale Dön"): 
-        st.session_state.page = 'main'
-        st.rerun()
-    st.title(f"🏟️ {st.session_state.target}")
-    st.markdown('<div style="background:white; padding:40px; border-radius:25px; border:2px solid #6366f1;"><h3>Canlı DVA Rating: 8.4</h3><p>Anlık veri akışı senkronize ediliyor...</p></div>', unsafe_allow_html=True)
+        if st.button("🖼️ 1080x1080 TASARIMI ÜRET", use_container_width=True):
+            with st.spinner("Görsel motoru çalıştırılıyor..."):
+                st.success(f"{st.session_state.target} için sosyal medya kartı oluşturuldu!")
+                # Kart görseli simülasyonu
+                st.markdown(f"""
+                    <div style="width:100%; height:300px; background:#101828; border-radius:20px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; border:4px solid #00d084;">
+                        <h2 style="margin:0;">{st.session_state.target}</h2>
+                        <p style="color:#00d084; font-size:30px; font-weight:800;">€68.4M</p>
+                        <small>DVA PROJECT EXCLUSIVE</small>
+                    </div>
+                """, unsafe_allow_html=True)
