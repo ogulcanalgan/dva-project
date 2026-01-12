@@ -2,97 +2,114 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# --- UI & UX CONFIG ---
-st.set_page_config(page_title="DVA Terminal", layout="wide", initial_sidebar_state="collapsed")
+# --- UI ARCHITECTURE (Clean UI Style) ---
+st.set_page_config(page_title="DVA Pulse Terminal", layout="wide", initial_sidebar_state="collapsed")
 
-# Session State başlatma (Hata almamak için kritik)
-if 'view' not in st.session_state: st.session_state.view = 'main'
-if 'selected_player' not in st.session_state: st.session_state.selected_player = None
-if 'active_match' not in st.session_state: st.session_state.active_match = None
+# Session State Initialization (Kritik: Sayfalar arası geçişi sağlar)
+if 'page' not in st.session_state: st.session_state.page = 'main'
+if 'target' not in st.session_state: st.session_state.target = None
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
     html, body, [class*="css"] { font-family: 'Plus+Jakarta+Sans', sans-serif; background: #fcfcfd; }
 
-    /* Match Center */
-    .match-header { display: flex; gap: 12px; padding: 10px; background: white; border-bottom: 2px solid #6366f1; position: sticky; top: 0; z-index: 999; }
-    
-    /* Market Heat Kartları (image_e8c0c9 ilhamlı) */
-    .heat-card { 
-        background: white; border-radius: 24px; padding: 25px; border: 1px solid #f1f5f9; 
-        transition: all 0.3s ease; border-bottom: 5px solid #f1f5f9;
+    /* Match Center - image_e8c0aa Tarzı */
+    .match-header { 
+        display: flex; gap: 12px; padding: 15px; background: white; 
+        border-bottom: 2px solid #6366f1; position: sticky; top: 0; z-index: 999; 
     }
-    .heat-card:hover { transform: translateY(-5px); border-bottom: 5px solid #6366f1; box-shadow: 0 15px 30px rgba(0,0,0,0.05); }
+    
+    /* Market Heat Kartları - image_e8c0c9 İlhamlı */
+    .heat-card { 
+        background: white; border-radius: 28px; padding: 25px; border: 1px solid #f1f5f9; 
+        transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        margin-bottom: 10px;
+    }
+    .heat-card:hover { transform: translateY(-5px); border-color: #6366f1; }
 
-    /* Premium Profile Header */
+    /* Oyuncu Profil Header (1 Numara / Clean UI) */
     .pro-header {
-        background: #0f172a; color: white; padding: 40px; border-radius: 30px;
+        background: #0f172a; color: white; padding: 45px; border-radius: 35px;
         position: relative; border: 1px solid #1e293b;
     }
-    .dva-tag { position: absolute; right: 30px; top: 30px; background: #00d084; color: #0f172a; padding: 8px 16px; border-radius: 12px; font-weight: 800; }
+    .dva-tag { 
+        position: absolute; right: 40px; top: 40px; background: #00d084; 
+        color: #0f172a; padding: 10px 20px; border-radius: 15px; font-weight: 800; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 1. MATCH CENTER (SABİT ÜST BAR) ---
 st.markdown('<div class="match-header">', unsafe_allow_html=True)
-m_cols = st.columns([1,1,1,1,1])
+# Hatalı satırlar tamamen temizlendi (image_f2a74a çözümü)
 matches = [("GS", "2-1", "BJK", "72'"), ("RM", "0-0", "BAR", "15'"), ("MC", "3-2", "LIV", "FT")]
-
+cols = st.columns([1, 1, 1, 2])
 for i, (t1, s, t2, time) in enumerate(matches):
-    with m_cols[i]:
-        # Tıklanabilir skor butonu
-        if st.button(f"{t1} {s} {t2}", key=f"m_{i}", use_container_width=True):
-            st.session_state.active_match = f"{t1} v {t2}"
-            st.session_state.view = 'match_detail'
+    with cols[i]:
+        if st.button(f"{t1} {s} {t2}", key=f"match_{i}", use_container_width=True):
+            st.session_state.target = f"{t1} v {t2}"
+            st.session_state.page = 'live'
             st.rerun()
-        st.markdown(f'<p style="text-align:center; color:red; font-size:10px; margin-top:-10px;">{time}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="text-align:center; color:red; font-size:11px; margin-top:-10px;">{time}</p>', unsafe_allow_html=True)
 
-# --- 2. SAYFA YÖNETİMİ ---
+# --- 2. DİNAMİK SAYFA YÖNETİMİ ---
 
-# --- ANA SAYFA ---
-if st.session_state.view == 'main':
-    st.title("📡 Trend Haberler")
-    h_cols = st.columns(3)
+if st.session_state.page == 'main':
+    # --- ANA SAYFA (RADAR & TRENDLER) ---
+    st.title("📡 Trend Radar")
+    n_cols = st.columns(3)
     news = [
-        {"b": "𝕏 @yagosabuncuoglu", "c": "#000", "m": "Yağız: Arda Güler antrenman verilerinde zirvede."},
-        {"b": "📰 MARCA", "c": "#dc3545", "m": "Marca: Real Madrid, Arda'nın fiziksel gelişimini kutluyor."},
-        {"b": "🛡️ DVA SMART", "c": "#00d084", "m": "DVA: Kerem Aktürkoğlu xG liderliğine yükseldi."}
+        {"src": "𝕏 @yagosabuncuoglu", "m": "Arda Güler antrenmanda büyülemeye devam ediyor."},
+        {"src": "📰 MARCA", "m": "Real Madrid, Arda için özel gelişim programı uyguluyor."},
+        {"src": "🛡️ DVA", "m": "Kerem Aktürkoğlu xG verimliliğinde Benfica lideri."}
     ]
     for i, item in enumerate(news):
-        with h_cols[i]:
-            st.markdown(f'<div style="background:white; padding:20px; border-radius:15px; border-left:5px solid {item["c"]}; box-shadow: 0 2px 10px rgba(0,0,0,0.02);"><b>{item["b"]}</b><p style="font-size:14px; margin-top:10px;">{item["m"]}</p></div>', unsafe_allow_html=True)
+        with n_cols[i]:
+            st.markdown(f'<div style="background:white; padding:20px; border-radius:20px; border-top:4px solid #6366f1;"><b>{item["src"]}</b><br><small>{item["m"]}</small></div>', unsafe_allow_html=True)
 
     st.write("---")
-    st.subheader("🔥 Market Heat")
-    p_cols = st.columns(3)
+    st.subheader("🔥 Market Heat (Analitik Değerler)")
+    h_cols = st.columns(3)
     players = [
-        {"n": "Arda Güler", "t": "REAL MADRID", "v": "€68.4M"},
-        {"n": "Semih Kılıçsoy", "t": "BEŞİKTAŞ", "v": "€22.1M"},
-        {"n": "Ferdi Kadıoğlu", "t": "BRIGHTON", "v": "€35.0M"}
+        {"n": "Arda Güler", "v": "€68.4M", "c": "REAL MADRID"},
+        {"n": "Semih Kılıçsoy", "v": "€22.1M", "c": "BEŞİKTAŞ"},
+        {"n": "Ferdi Kadıoğlu", "v": "€35.0M", "c": "BRIGHTON"}
     ]
     for i, p in enumerate(players):
-        with p_cols[i]:
-            # Kart Görseli
-            st.markdown(f"""
-                <div class="heat-card">
-                    <small style="color:#6366f1; font-weight:800;">{p['t']}</small>
-                    <h2 style="margin:10px 0;">{p['n']}</h2>
-                    <p style="color:#00d084; font-weight:800;">{p['v']}</p>
-                </div>
-            """, unsafe_allow_html=True)
-            # Kartın altındaki görünmez tıklama alanı
-            if st.button(f"Analiz Et: {p['n']}", key=f"pbtn_{i}", use_container_width=True):
-                st.session_state.selected_player = p['n']
-                st.session_state.view = 'profile'
+        with h_cols[i]:
+            st.markdown(f'<div class="heat-card"><small style="color:#6366f1; font-weight:800;">{p["c"]}</small><h2>{p["n"]}</h2><p style="color:#00d084; font-weight:800;">{p["v"]}</p></div>', unsafe_allow_html=True)
+            if st.button(f"Profil: {p['n']}", key=f"p_{i}", use_container_width=True):
+                st.session_state.target = p['n']
+                st.session_state.page = 'profile'
                 st.rerun()
 
-# --- OYUNCU PROFİL SAYFASI ---
-elif st.session_state.view == 'profile':
-    if st.button("← Ana Sayfaya Dön"): 
-        st.session_state.view = 'main'
+elif st.session_state.page == 'profile':
+    # --- OYUNCU ANALİTİK SAYFASI (image_e8c0c9) ---
+    if st.button("← Radar'a Dön"): 
+        st.session_state.page = 'main'
         st.rerun()
 
     st.markdown(f"""
         <div class="pro-header">
-            <div class="dva-tag">DVA ANALYTIC: €
+            <div class="dva-tag">DVA VALUE: €68.4M</div>
+            <h1 style="margin:0; font-size:48px;">{st.session_state.target}</h1>
+            <p style="color:#94a3b8; margin-top:10px;">Analitik Potansiyel: +%52 | TM Değeri: €45M</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        st.info("Oyuncu performans grafikleri ve analitik veri setleri burada yüklenir.")
+    with c2:
+        st.subheader("📸 Creator Studio")
+        if st.button("📸 1080x1080 KART OLUŞTUR", use_container_width=True):
+            st.success("Tasarım Motoru: 1080x1080 PNG Hazırlanıyor...")
+
+elif st.session_state.page == 'live':
+    # --- CANLI MAÇ ANALİZİ (image_e8c0aa) ---
+    if st.button("← Terminale Dön"): 
+        st.session_state.page = 'main'
+        st.rerun()
+    st.title(f"🏟️ {st.session_state.target}")
+    st.markdown('<div style="background:white; padding:40px; border-radius:25px; border:2px solid #6366f1;"><h3>Canlı DVA Rating: 8.4</h3><p>Anlık veri akışı senkronize ediliyor...</p></div>', unsafe_allow_html=True)
